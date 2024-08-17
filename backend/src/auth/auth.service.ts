@@ -1,12 +1,15 @@
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException, UseGuards } from '@nestjs/common';
 import { Model } from 'mongoose';
 import { Users } from './schemas/signup.schema';
 import { InjectModel } from '@nestjs/mongoose';
+import { JwtService } from '@nestjs/jwt';
+import { AuthGuard } from './Guards/auth.guard';
 
 @Injectable()
 export class AuthService {
     constructor(
         @InjectModel(Users.name) private userModel: Model<Users>,
+        private readonly jwtService : JwtService
     ){}
 
     async createUser(signupBody){
@@ -35,11 +38,14 @@ export class AuthService {
 
     async login(loginDto){
         const {username , password} = loginDto;
+        const tokenObj = {username , password};
+        console.log(tokenObj);
         try {
             const user = await this.userModel.findOne({username});
-
+            const firstName = user.firstName;
             if(user && user.password === password){
-                return user;
+                const token = await this.jwtService.sign(tokenObj);
+                return {firstName , token};
             }else{
                 throw new UnauthorizedException("Username or password is invalid");
             }
@@ -47,7 +53,7 @@ export class AuthService {
             throw new UnauthorizedException(error);
         }
     }
-
+  
     async getUsers(){
         const users = this.userModel.find();
         return users;
